@@ -1,0 +1,11 @@
+[alias]
+b = "build"
+c = "check"
+t = "nextest run"
+f = "fmt --all"
+cl = "clippy --workspace --all-targets --all-features -- -D warnings"
+
+[build]
+# Опционально: использование mold линкера для ускорения линковки в Linux
+# linker = "clang"
+# rustflags = ["-C", "link-arg=-fuse-ld=mold"]

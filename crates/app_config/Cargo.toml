@@ -1,0 +1,4 @@
+[package]
+name = "app_config"
+version.workspace = true
+edition.workspace = true

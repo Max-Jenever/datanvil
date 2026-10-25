@@ -1,0 +1,10 @@
+[package]
+name = "application"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+domain.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+async-trait = "0.1"
