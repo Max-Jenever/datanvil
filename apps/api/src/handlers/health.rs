@@ -74,4 +74,3 @@ pub async fn health_aggregated(State(state): State<Arc<ApiState>>) -> impl IntoR
 
     (http_status, Json(payload))
 }
-
