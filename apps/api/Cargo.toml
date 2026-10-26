@@ -15,5 +15,8 @@ tokio.workspace = true
 axum.workspace = true
 tracing.workspace = true
 serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+dotenvy = "0.15"
 
 config.workspace = true

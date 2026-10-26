@@ -2,3 +2,7 @@
 name = "app_config"
 version.workspace = true
 edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+config.workspace = true

@@ -7,6 +7,7 @@ edition.workspace = true
 domain.workspace = true
 application.workspace = true
 contracts.workspace = true
+app_config.workspace = true
 
 sqlx.workspace = true
 redis.workspace = true
@@ -17,3 +18,5 @@ serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 async-trait = "0.1"
+tokio.workspace = true
+anyhow.workspace = true

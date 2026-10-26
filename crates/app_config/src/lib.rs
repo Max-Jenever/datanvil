@@ -1,14 +1,37 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Settings {
+    pub database: DatabaseSettings,
+    pub redis: RedisSettings,
+    pub kafka: KafkaSettings,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[derive(Debug, Deserialize, Clone)]
+pub struct DatabaseSettings {
+    pub url: String,
+    pub max_connections: u32,
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+#[derive(Debug, Deserialize, Clone)]
+pub struct RedisSettings {
+    pub url: String,
+    pub pool_size: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KafkaSettings {
+    pub brokers: String,
+    pub consumer_group: String,
+    pub topic_events: String,
+}
+
+pub fn get_settings() -> Result<Settings, config::ConfigError> {
+    let builder = config::Config::builder().add_source(
+        config::Environment::default()
+            .separator("__")
+            .try_parsing(true),
+    );
+
+    builder.build()?.try_deserialize()
 }
