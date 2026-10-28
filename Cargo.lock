@@ -52,6 +52,7 @@ dependencies = [
  "app_config",
  "application",
  "axum",
+ "chrono",
  "config",
  "contracts",
  "domain",
@@ -62,6 +63,7 @@ dependencies = [
  "telemetry",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -77,6 +79,7 @@ name = "application"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "contracts",
  "domain",
  "serde",
  "thiserror 1.0.69",
@@ -339,6 +342,12 @@ dependencies = [
 [[package]]
 name = "contracts"
 version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "uuid",
+]
 
 [[package]]
 name = "convert_case"

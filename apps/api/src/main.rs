@@ -1,9 +1,11 @@
 use app_config::get_settings;
+use application::event_repository::EventRepository;
 use application::health::{KafkaHealthChecker, PostgresHealthChecker, RedisHealthChecker};
 use axum::Router;
 use infrastructure::health::{
     kafka::KafkaHealthCheckerImpl, postgres::PgHealthChecker, redis::RedisHealthCheckerImpl,
 };
+use infrastructure::event_repository::PostgresEventRepository;
 use infrastructure::AppState;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -17,7 +19,6 @@ use state::ApiState;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    // Загружаем переменные окружения из .env файла
     dotenvy::dotenv().ok();
 
     telemetry::init();
@@ -35,6 +36,8 @@ async fn main() -> Result<(), anyhow::Error> {
             as Arc<dyn RedisHealthChecker>,
         kafka_health: Arc::new(KafkaHealthCheckerImpl::new(infra.kafka_producer.clone()))
             as Arc<dyn KafkaHealthChecker>,
+        event_repo: Arc::new(PostgresEventRepository::new(infra.db_pool.clone())) 
+            as Arc<dyn EventRepository>,
     });
 
     let app: Router = router::build_router(api_state);

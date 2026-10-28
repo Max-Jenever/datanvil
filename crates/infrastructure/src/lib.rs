@@ -1,5 +1,6 @@
 pub mod health;
 pub mod models;
+pub mod event_repository;
 
 use app_config::Settings;
 use rdkafka::ClientConfig;
@@ -24,7 +25,6 @@ impl AppState {
         // 2. Redis
         let redis_client = redis::Client::open(settings.redis.url.as_str())?;
         let mut conn = redis_client.get_multiplexed_async_connection().await?;
-        // Исправлено: query_async принимает только тип возвращаемого значения
         let _: String = redis::cmd("PING").query_async(&mut conn).await?;
 
         // 3. Kafka

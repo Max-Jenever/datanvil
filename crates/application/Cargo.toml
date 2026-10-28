@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 domain.workspace = true
+contracts.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 async-trait = "0.1"
