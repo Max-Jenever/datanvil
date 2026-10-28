@@ -1028,6 +1028,7 @@ dependencies = [
  "app_config",
  "application",
  "async-trait",
+ "chrono",
  "contracts",
  "domain",
  "rdkafka",
@@ -1038,6 +1039,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
