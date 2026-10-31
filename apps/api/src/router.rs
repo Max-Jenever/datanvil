@@ -1,7 +1,10 @@
-use axum::{routing::get, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use std::sync::Arc;
 
-use crate::handlers::health;
+use crate::handlers::{events, health};
 use crate::state::ApiState;
 
 pub fn build_router(state: Arc<ApiState>) -> Router {
@@ -10,5 +13,7 @@ pub fn build_router(state: Arc<ApiState>) -> Router {
         .route("/health/postgres", get(health::health_postgres))
         .route("/health/redis", get(health::health_redis))
         .route("/health/kafka", get(health::health_kafka))
+        .route("/v1/events", post(events::create_events))
+        .route("/v1/events", get(events::list_events))
         .with_state(state)
 }

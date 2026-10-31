@@ -1,3 +1,5 @@
+pub mod batch_writer;
+pub mod event_repository;
 pub mod health;
 
 use app_config::Settings;

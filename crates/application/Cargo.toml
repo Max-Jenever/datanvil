@@ -8,3 +8,4 @@ domain.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 async-trait = "0.1"
+contracts.workspace = true
