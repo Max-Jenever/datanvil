@@ -1037,6 +1037,7 @@ dependencies = [
  "async-trait",
  "contracts",
  "domain",
+ "futures",
  "rdkafka",
  "redis",
  "serde",

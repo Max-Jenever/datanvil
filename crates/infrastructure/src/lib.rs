@@ -1,6 +1,7 @@
 pub mod batch_writer;
 pub mod event_repository;
 pub mod health;
+pub mod kafka_producer;
 
 use app_config::Settings;
 use rdkafka::ClientConfig;

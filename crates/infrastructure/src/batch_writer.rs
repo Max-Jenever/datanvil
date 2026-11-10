@@ -1,12 +1,13 @@
 use contracts::EventDto;
-use sqlx::PgPool;
+use crate::kafka_producer::KafkaEventProducer;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{error, info};
+use tracing::{info, debug, warn};
 
 pub struct BatchWriter {
     rx: mpsc::Receiver<EventDto>,
-    pool: PgPool,
+    producer: Arc<KafkaEventProducer>,
     batch_size: usize,
     flush_interval: Duration,
 }
@@ -14,41 +15,54 @@ pub struct BatchWriter {
 impl BatchWriter {
     pub fn new(
         rx: mpsc::Receiver<EventDto>,
-        pool: PgPool,
+        producer: Arc<KafkaEventProducer>,
         batch_size: usize,
         flush_interval_ms: u64,
     ) -> Self {
         Self {
             rx,
-            pool,
+            producer,
             batch_size,
             flush_interval: Duration::from_millis(flush_interval_ms),
         }
     }
 
     pub async fn run(mut self) {
+        info!(
+            batch_size = self.batch_size,
+            interval_ms = self.flush_interval.as_millis(),
+            "BatchWriter task started (Kafka mode)"
+        );
+
         let mut batch = Vec::with_capacity(self.batch_size);
         let mut interval = tokio::time::interval(self.flush_interval);
-        // Игнорируем пропущенные тики, если обработка заняла слишком много времени
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
         loop {
             tokio::select! {
-                // Условие 1: Пришло новое событие
                 Some(event) = self.rx.recv() => {
                     batch.push(event);
+                    
+                    // Агрессивно выгребаем канал
+                    while batch.len() < self.batch_size {
+                        match self.rx.try_recv() {
+                            Ok(e) => batch.push(e),
+                            Err(_) => break,
+                        }
+                    }
+                    
                     if batch.len() >= self.batch_size {
                         self.flush(&mut batch).await;
                     }
                 }
-                // Условие 2: Истекло время
                 _ = interval.tick() => {
                     if !batch.is_empty() {
+                        debug!("Timer triggered, flushing partial batch of size {}", batch.len());
                         self.flush(&mut batch).await;
                     }
                 }
-                // Условие 3: Канал закрыт (завершение работы приложения)
                 else => {
+                    warn!("Channel closed, flushing remaining {} events and exiting", batch.len());
                     if !batch.is_empty() {
                         self.flush(&mut batch).await;
                     }
@@ -64,55 +78,18 @@ impl BatchWriter {
         }
 
         let count = batch.len();
+        let failed = self.producer.send_batch(batch).await;
 
-        // Формирование динамического Bulk INSERT запроса
-        // sqlx::query! не поддерживает динамическое число аргументов, поэтому используем sqlx::query
-        let mut query_str = String::from(
-            "INSERT INTO events_raw (id, timestamp, service, metric, value, payload) VALUES ",
-        );
-
-        for (i, _) in batch.iter().enumerate() {
-            if i > 0 {
-                query_str.push_str(", ");
-            }
-            // Генерируем плейсхолдеры: ($1, $2, $3, $4, $5, $6), ($7, $8, ...)
-            let base = i * 6 + 1;
-            query_str.push_str(&format!(
-                "(${base}, ${}, ${}, ${}, ${}, ${})",
-                base + 1,
-                base + 2,
-                base + 3,
-                base + 4,
-                base + 5
-            ));
+        if failed == 0 {
+            info!(batch_size = count, "Successfully flushed batch to Kafka");
+        } else {
+            tracing::error!(
+                batch_size = count,
+                failed = failed,
+                "Partially failed to flush batch to Kafka"
+            );
         }
 
-        let mut query = sqlx::query(&query_str);
-
-        // Привязка аргументов
-        for event in batch.iter() {
-            query = query
-                .bind(event.id)
-                .bind(event.timestamp)
-                .bind(&event.service)
-                .bind(&event.metric)
-                .bind(event.value)
-                .bind(&event.payload);
-        }
-
-        match query.execute(&self.pool).await {
-            Ok(_) => {
-                info!(
-                    batch_size = count,
-                    "Successfully flushed batch to PostgreSQL"
-                );
-            }
-            Err(e) => {
-                error!(error = %e, batch_size = count, "Failed to flush batch to PostgreSQL");
-            }
-        }
-
-        // Очистка вектора без освобождения памяти (переиспользование capacity)
         batch.clear();
     }
 }
