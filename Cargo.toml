@@ -6,7 +6,7 @@ members = ["apps/*", "crates/*"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/your-org/your-project"
+repository = "https://github.com/Max-Jenever/datanvil"
 
 # Централизованное управление зависимостями
 [workspace.dependencies]
