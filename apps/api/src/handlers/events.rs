@@ -1,4 +1,4 @@
-use application::event_repository::EventRepository;
+// use application::event_repository::EventRepository;
 use axum::{
     extract::{Query, State},
     http::StatusCode,
