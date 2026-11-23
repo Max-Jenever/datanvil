@@ -10,10 +10,13 @@ use infrastructure::health::{
     redis::RedisHealthCheckerImpl,
 };
 use infrastructure::kafka_producer::KafkaEventProducer;
+use infrastructure::redis_dedup::RedisDeduplication;
+use infrastructure::redis_hot_aggregates::RedisHotAggregates;
 use infrastructure::AppState;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 use tracing::info;
 
 mod handlers;
@@ -33,24 +36,32 @@ async fn main() -> Result<(), anyhow::Error> {
     let infra = AppState::new(&settings).await?;
     info!("infrastructure initialized");
 
+    // Redis connection для дедупликации и горячих агрегатов
+    let redis_conn = infra.redis_client.get_multiplexed_async_connection().await?;
+    let redis_conn_hot = infra.redis_client.get_multiplexed_async_connection().await?;
+
+    let dedup = Arc::new(Mutex::new(RedisDeduplication::new(redis_conn, 86400))); // 24 часа
+    let hot_aggregates = Arc::new(Mutex::new(RedisHotAggregates::new(redis_conn_hot, 120))); // 2 минуты
+
     let kafka_producer = Arc::new(KafkaEventProducer::new(
         &settings.kafka.brokers,
         &settings.kafka.topic_events,
     ));
     info!("Kafka producer initialized");
 
-    let (event_tx, event_rx) = mpsc::channel::<contracts::EventDto>(1_000_000);
+    let (event_tx, event_rx) = mpsc::channel::<contracts::EventDto>(100_000);
 
     let batch_writer = BatchWriter::new(
         event_rx,
         kafka_producer.clone(),
-        500,  // batch_size
-        100,  // flush_interval_ms
+        dedup.clone(),
+        500,
+        100,
     );
     tokio::spawn(async move {
         batch_writer.run().await;
     });
-    info!("Batch writer started in background (Kafka mode)");
+    info!("Batch writer started in background (Kafka + dedup mode)");
 
     let api_state = Arc::new(ApiState {
         pg_health: Arc::new(PgHealthChecker::new(infra.db_pool.clone())) as Arc<dyn PostgresHealthChecker>,
@@ -58,6 +69,7 @@ async fn main() -> Result<(), anyhow::Error> {
         kafka_health: Arc::new(KafkaHealthCheckerImpl::new(infra.kafka_producer.clone())) as Arc<dyn KafkaHealthChecker>,
         event_tx,
         event_repo: Arc::new(PostgresEventRepository::new(infra.db_pool.clone())) as Arc<dyn EventRepository>,
+        hot_aggregates,
     });
 
     let app: Router = router::build_router(api_state);

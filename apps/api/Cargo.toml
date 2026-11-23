@@ -20,3 +20,4 @@ anyhow.workspace = true
 dotenvy = "0.15"
 
 config.workspace = true
+chrono.workspace = true

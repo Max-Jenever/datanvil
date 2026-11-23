@@ -4,7 +4,7 @@ use axum::{
 };
 use std::sync::Arc;
 
-use crate::handlers::{events, health};
+use crate::handlers::{events, health, metrics};
 use crate::state::ApiState;
 
 pub fn build_router(state: Arc<ApiState>) -> Router {
@@ -15,5 +15,6 @@ pub fn build_router(state: Arc<ApiState>) -> Router {
         .route("/health/kafka", get(health::health_kafka))
         .route("/v1/events", post(events::create_events))
         .route("/v1/events", get(events::list_events))
+        .route("/v1/metrics", get(metrics::get_metrics))
         .with_state(state)
 }

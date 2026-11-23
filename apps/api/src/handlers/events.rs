@@ -1,4 +1,3 @@
-// use application::event_repository::EventRepository;
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -9,6 +8,7 @@ use contracts::{EventDto, EventsResponse};
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::mpsc::error::TrySendError;
+use chrono::{DateTime, Utc};
 
 use crate::state::ApiState;
 
@@ -31,6 +31,24 @@ pub async fn create_events(
     }
 
     for event in events {
+        // Обновляем горячий агрегат в Redis (fire-and-forget, не блокируем ответ)
+        let window_start = {
+            let ts = event.timestamp.timestamp();
+            let window_secs = 60;
+            let aligned = ts - ts.rem_euclid(window_secs);
+            DateTime::from_timestamp(aligned, 0).unwrap_or(Utc::now())
+        };
+
+        let hot = state.hot_aggregates.clone();
+        let service = event.service.clone();
+        let metric = event.metric.clone();
+        let value = event.value;
+        tokio::spawn(async move {
+            if let Err(e) = hot.lock().await.update(&service, &metric, window_start, value).await {
+                tracing::error!(error = %e, "Failed to update hot aggregate in Redis");
+            }
+        });
+
         if let Err(TrySendError::Full(_)) = state.event_tx.try_send(event) {
             tracing::warn!("Channel is full, returning 503 Service Unavailable");
             return (

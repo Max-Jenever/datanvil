@@ -2,6 +2,8 @@ pub mod batch_writer;
 pub mod event_repository;
 pub mod health;
 pub mod kafka_producer;
+pub mod redis_dedup;
+pub mod redis_hot_aggregates;
 
 use app_config::Settings;
 use rdkafka::ClientConfig;
